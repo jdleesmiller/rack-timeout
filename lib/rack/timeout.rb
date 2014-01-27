@@ -13,8 +13,18 @@ module Rack
     MAX_REQUEST_AGE = 30 # seconds
     @overtime       = 60 # seconds by which to extend MAX_REQUEST_AGE for requests that have a body (and have hence potentially waited long for the body to be received.)
     @timeout        = 15 # seconds
+
+    # default action on timeout: raise a timeout error in the app thread
+    @on_timeout = proc do |info, app_thread|
+      app_thread.raise(RequestTimeoutError, "Request ran for longer than #{info.timeout} seconds.")
+    end
+
     class << self
       attr_accessor :timeout, :overtime
+
+      def on_timeout &block
+        @on_timeout = on_timeout
+      end
     end
 
     def initialize(app)
@@ -50,7 +60,7 @@ module Rack
             sleep(sleep_seconds)
           end
           Rack::Timeout._set_state! env, :timed_out
-          app_thread.raise(RequestTimeoutError, "Request ran for longer than #{info.timeout} seconds.")
+          self.class.on_timeout.call info, app_thread
         end
         response = @app.call(env)
       ensure
