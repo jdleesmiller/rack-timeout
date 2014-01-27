@@ -23,7 +23,7 @@ module Rack
       attr_accessor :timeout, :overtime
 
       def on_timeout &block
-        @on_timeout = on_timeout
+        @on_timeout = block
       end
     end
 
